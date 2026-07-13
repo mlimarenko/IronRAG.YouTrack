@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Local runtime state
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.db
+/tmp
+/tmp-*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# OMC / OMX scratch
+/.omc/
+/.omx/
+
+# Operator-specific config (only the .example is public)
+routing.yaml
+/framework/
+
+# Live E2E artifacts and local bootstrap secrets
+/tests/e2e/.artifacts/
+/tests/e2e/.env.local

@@ -1,0 +1,53 @@
+services:
+  mock-provider:
+    build:
+      context: ./mock_provider
+    image: ironrag-youtrack-mock-provider:full-e2e
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      - ironrag
+
+  connector:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: ${CONNECTOR_E2E_IMAGE:-ironrag-youtrack:full-e2e}
+    env_file:
+      - ${CONNECTOR_E2E_ENV_FILE:-/tmp/ironrag-youtrack-connector-e2e.env}
+    ports:
+      - "127.0.0.1:${CONNECTOR_E2E_PORT:-18188}:8088"
+    volumes:
+      - ${CONNECTOR_E2E_ROUTING_FILE:-/tmp/ironrag-youtrack-connector-e2e-routing.yaml}:/app/routing.yaml:ro
+      - connector-state:/var/lib/ironrag-connector
+    depends_on:
+      mock-provider:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - ironrag
+      - youtrack
+
+volumes:
+  connector-state:
+
+networks:
+  ironrag:
+    external: true
+    name: ${IRONRAG_E2E_NETWORK:-ironrag-youtrack-full-e2e_default}
+  youtrack:
+    external: true
+    name: ${YOUTRACK_E2E_NETWORK:-ironrag-youtrack-e2e_default}

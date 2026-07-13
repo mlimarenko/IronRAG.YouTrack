@@ -1,0 +1,31 @@
+# First matching rule wins. Match keys are emitted by YouTrackAdapter.
+default:
+  workspace: 00000000-0000-0000-0000-000000000000
+  library:   00000000-0000-0000-0000-000000000000
+
+rules:
+  - description: "Route one project by short name"
+    match:
+      project: DOCS
+    target:
+      library: 00000000-0000-0000-0000-000000000001
+
+  - description: "Route a tagged article set"
+    match:
+      tag: reference
+    target:
+      library: 00000000-0000-0000-0000-000000000002
+
+  - description: "Route a hierarchy branch by parent database ID"
+    match:
+      parent_article_id: 226-0
+    target:
+      workspace: 00000000-0000-0000-0000-000000000099
+      library:   00000000-0000-0000-0000-000000000003
+
+policies:
+  article:
+    on_new: create
+    on_changed: replace
+    on_missing: delete
+    on_duplicate_content: skip
