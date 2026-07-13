@@ -59,12 +59,12 @@ IronRAG.
 
 ## Attachments
 
-Article attachments have independent visibility and lifecycle. In framework
-v0.0.11, dependent documents are not enumerated as primary items and cannot be
-reaped when removed from a live parent. This connector therefore includes only
-attachment metadata in the parent Markdown and change token. Supporting binary
-attachments requires a future framework contract that reconciles dependents
-while preserving `parent_external_key`.
+Article attachments have independent visibility and lifecycle. In the current
+framework, dependent documents are not enumerated as primary items and cannot
+be reaped when removed from a live parent. This connector therefore includes
+only attachment metadata in the parent Markdown and change token. Supporting
+binary attachments requires a future framework contract that reconciles
+dependents while preserving `parent_external_key`.
 
 ## Known upstream title limitation
 

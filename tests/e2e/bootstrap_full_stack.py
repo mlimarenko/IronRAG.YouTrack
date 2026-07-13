@@ -19,7 +19,8 @@ resulting session cookie.
 
 The helper deliberately never prints response bodies, credentials, cookies,
 or tokens.  Its runtime artifact contains a least-privilege, library-scoped
-token and is atomically written with mode 0600.
+token, human-readable catalog slugs, and the internal IDs needed by the E2E
+assertions.  It is atomically written with mode 0600.
 """
 
 from __future__ import annotations
@@ -198,7 +199,7 @@ class IronRagClient:
         data = None
         headers = {
             "Accept": "application/json",
-            "User-Agent": "ironrag-youtrack-full-e2e-bootstrap/0.0.1",
+            "User-Agent": "ironrag-youtrack-full-e2e-bootstrap/0.1.0",
         }
         if payload is not None:
             data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -749,6 +750,8 @@ def _runtime_token_is_reusable(
     if (
         not token
         or values.get("IRONRAG_BASE_URL") != config.base_url
+        or values.get("IRONRAG_WORKSPACE_SLUG") != config.workspace_slug
+        or values.get("IRONRAG_LIBRARY_SLUG") != config.library_slug
         or values.get("IRONRAG_WORKSPACE_ID") != workspace_id
         or values.get("IRONRAG_LIBRARY_ID") != library_id
     ):
@@ -896,6 +899,8 @@ def bootstrap(config: Config) -> None:
     runtime = {
         "IRONRAG_BASE_URL": config.base_url,
         "IRONRAG_API_TOKEN": token,
+        "IRONRAG_WORKSPACE_SLUG": config.workspace_slug,
+        "IRONRAG_LIBRARY_SLUG": config.library_slug,
         "IRONRAG_WORKSPACE_ID": workspace_id,
         "IRONRAG_LIBRARY_ID": library_id,
     }

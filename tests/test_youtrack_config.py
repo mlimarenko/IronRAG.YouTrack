@@ -27,6 +27,14 @@ def test_settings_normalize_base_url_and_default_to_polling() -> None:
     assert settings.youtrack_snapshot_validation_passes == 2
 
 
+@pytest.mark.parametrize("run_mode", [RunMode.WEBHOOK, RunMode.BOTH])
+def test_settings_reject_run_modes_without_complete_kb_events(
+    run_mode: RunMode,
+) -> None:
+    with pytest.raises(ValidationError, match="RUN_MODE must be 'poll'"):
+        _settings(run_mode=run_mode)
+
+
 def test_project_filters_are_trimmed_deduplicated_and_ordered() -> None:
     settings = _settings(
         youtrack_projects=" DOCS,0-7,DOCS, ",

@@ -28,6 +28,16 @@ class YouTrackSettings(BaseConnectorSettings):
     # article events, so polling is the only complete reconciliation source.
     run_mode: RunMode = RunMode.POLL
 
+    @field_validator("run_mode")
+    @classmethod
+    def _require_poll_mode(cls, value: RunMode) -> RunMode:
+        if value is not RunMode.POLL:
+            raise ValueError(
+                "RUN_MODE must be 'poll': YouTrack Knowledge Base has no "
+                "complete lifecycle webhooks"
+            )
+        return value
+
     @field_validator("youtrack_base_url")
     @classmethod
     def _validate_base_url(cls, value: str) -> str:

@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: mlimarenko/IronRAG.ConnectorTemplate
-          ref: 8d7e893e6ae4bdbfe8f3329355f4dbd701bd1cff
+          ref: c7c1b414c66acdce260d17fe1137b69079303327
           path: connectortemplate
 
       - name: Set up uv

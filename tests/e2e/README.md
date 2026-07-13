@@ -20,7 +20,7 @@ project names and cleanup only those projects. Do not replace the scoped
 - Python 3.12 and `uv`.
 - Node.js, Playwright, and Chromium for the one-time YouTrack wizard.
 - A clean IronRAG source checkout at tag `v0.5.9` for its Compose file.
-- `IronRAG.ConnectorTemplate` v0.0.11 checked out at `../connectortemplate`.
+- `IronRAG.ConnectorTemplate` v0.1.0 checked out at `../connectortemplate`.
 
 Install the browser once if needed:
 
@@ -90,21 +90,25 @@ uv run python tests/e2e/prepare_connector_runtime.py
 `bootstrap_full_stack.py` creates an isolated library, configures its five
 Ollama-profile bindings against the deterministic provider, and mints a
 library-scoped token with only `library_read` and `library_write` permissions.
+Its six-key runtime artifact carries the service URL and token, the workspace
+and library slugs used for the friendly routing reference, and the internal
+workspace and library IDs retained for IAM and lifecycle assertions.
 `prepare_connector_runtime.py` converts that runtime into connector, routing,
-and host-test files without exposing secrets. The two secret-bearing
-environment files use mode `0600`; the non-secret routing file uses mode
-`0644` so container UID 10001 can read the bind mount.
+and host-test files without exposing secrets. The generated routing target is
+`<workspace-slug>/<library-slug>`; no UUID appears in routing configuration.
+The two secret-bearing environment files use mode `0600`; the non-secret
+routing file uses mode `0644` so container UID 10001 can read the bind mount.
 
 ## 3. Build and test the connector container
 
-Stage the exact ConnectorTemplate v0.0.11 commit in the ignored Docker build
+Stage the exact ConnectorTemplate v0.1.0 release in the ignored Docker build
 directory, then start the connector on both isolated Docker networks:
 
 ```bash
 rm -rf framework
 mkdir framework
 git -C ../connectortemplate \
-  archive 8d7e893e6ae4bdbfe8f3329355f4dbd701bd1cff \
+  archive v0.1.0 \
   | tar -x -C framework
 
 set -a

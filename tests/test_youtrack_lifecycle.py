@@ -9,7 +9,12 @@ from uuid import UUID, uuid4
 import pytest
 from ironrag_connector.orchestrator import Orchestrator
 from ironrag_connector.policy import PushPolicy
-from ironrag_connector.routing import PolicyOverrides, Router, RoutingConfig
+from ironrag_connector.routing import (
+    PolicyOverrides,
+    ResolvedLibraryTarget,
+    Router,
+    RoutingConfig,
+)
 from ironrag_connector.state import StateStore
 from ironrag_connector.sync import SyncManager
 
@@ -19,6 +24,7 @@ from youtrack_connector.youtrack import YouTrackError, YouTrackNotFoundError
 
 WORKSPACE_ID = UUID("00000000-0000-0000-0000-000000000099")
 LIBRARY_ID = UUID("00000000-0000-0000-0000-000000000077")
+LIBRARY_REF = "default/youtrack-knowledge-base"
 
 
 def _settings() -> YouTrackSettings:
@@ -154,11 +160,17 @@ def _manager(
         RoutingConfig.model_validate(
             {
                 "default": {
-                    "workspace": str(WORKSPACE_ID),
-                    "library": str(LIBRARY_ID),
+                    "library": LIBRARY_REF,
                 }
             }
-        )
+        ),
+        resolved_targets={
+            LIBRARY_REF: ResolvedLibraryTarget(
+                library_ref=LIBRARY_REF,
+                workspace_id=WORKSPACE_ID,
+                library_id=LIBRARY_ID,
+            )
+        },
     )
     state = StateStore(tmp_path / "state.sqlite")
     policies = PolicyOverrides(default=PushPolicy(), by_kind={})

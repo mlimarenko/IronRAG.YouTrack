@@ -26,10 +26,10 @@ YouTrack's standard webhook integration does not emit Knowledge Base article
 events, so this connector is poll-only. The REST API also has no article
 `updatedAfter` or deletion feed; complete snapshot reconciliation is required.
 
-Binary attachments are not separate IronRAG documents in v0.0.1. Current
-ConnectorTemplate versions do not reconcile a dependent that disappears from a
-still-live parent. Attachment names, MIME types, and sizes are included in the
-article Markdown, and attachment changes advance the article change token.
+Binary attachments are not separate IronRAG documents in the current release,
+because ConnectorTemplate does not yet reconcile a dependent that disappears
+from a still-live parent. Attachment names, MIME types, and sizes are included
+in the article Markdown, and attachment changes advance the article change token.
 
 ## Quick start
 
@@ -68,19 +68,32 @@ path. For `https://host.example/youtrack`, the connector calls
 
 ## Routing facts
 
-Each article emits:
+Routing targets use the same human-readable catalog reference as IronRAG MCP:
+`<workspace-slug>/<library-slug>`. These are the workspace and library slugs
+visible in IronRAG, for example `default/youtrack-knowledge-base`. UUID targets
+and a separate `workspace` key are intentionally unsupported.
+
+Rules are checked from top to bottom and the first matching rule wins. All
+criteria in a rule must match. Scalar facts use exact equality; `tag` is a
+collection fact, so a scalar criterion matches when that tag is present. Each
+article emits:
 
 | Fact | Value |
 |---|---|
 | `article_id` | Stable database ID |
-| `article_id_readable` | Human-readable project article ID |
-| `project_id` | Project database ID |
-| `project`, `project_short_name` | Project short name |
-| `project_name` | Project display name |
+| `article_id_readable` | Human-readable project article ID, or null when omitted |
+| `project_id` | Project database ID, or null when omitted |
+| `project`, `project_short_name` | Project short name, or null when omitted |
+| `project_name` | Project display name, or null when omitted |
 | `parent_article_id` | Parent database ID, if present |
 | `parent_article_id_readable` | Parent readable ID, if present |
-| `tag` | Sorted tag-name list |
+| `tag` | Sorted tag-name list; may be empty |
 | `reporter_login` | Reporter login, if visible |
+
+The complete routing schema, optional keys, defaults, policy enums, match
+semantics, and ready-to-edit examples are documented in
+[`routing.yaml.example`](routing.yaml.example). Unknown structural routing keys
+are rejected; `match` fact names are open-ended, so use the listed exact names.
 
 ## Manual sync and health
 
@@ -106,7 +119,7 @@ rm -rf framework
 For deployment, copy `.env.example` to `.env.local`, create `routing.yaml`, then
 run `docker compose up -d`.
 
-The compose file defaults to the immutable release tag `0.0.1`. Override it
+The compose file defaults to the immutable release tag `0.1.0`. Override it
 with `YOUTRACK_CONNECTOR_TAG` when deliberately testing another release.
 
 ## Verification

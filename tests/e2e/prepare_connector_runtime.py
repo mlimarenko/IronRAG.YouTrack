@@ -5,7 +5,7 @@ Inputs:
 
 * ``YOUTRACK_E2E_URL`` and ``YOUTRACK_E2E_TOKEN`` from the YouTrack bootstrap.
 * ``IRONRAG_E2E_RUNTIME_FILE`` from ``bootstrap_full_stack.py``.  It may be
-  JSON or dotenv, must contain exactly the four documented runtime keys, and
+  JSON or dotenv, must contain exactly the six documented runtime keys, and
   must be a regular current-user-owned mode-0600 file.
 
 Output paths are supplied through ``CONNECTOR_E2E_ENV_FILE``,
@@ -52,6 +52,8 @@ RUNTIME_KEYS = frozenset(
     {
         "IRONRAG_BASE_URL",
         "IRONRAG_API_TOKEN",
+        "IRONRAG_WORKSPACE_SLUG",
+        "IRONRAG_LIBRARY_SLUG",
         "IRONRAG_WORKSPACE_ID",
         "IRONRAG_LIBRARY_ID",
     }
@@ -59,6 +61,7 @@ RUNTIME_KEYS = frozenset(
 ENV_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 PROJECT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 CONTAINER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+CATALOG_SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 CONNECTOR_CONTAINER_PREFIX = "ironrag-youtrack-connector-e2e-"
 TMP_ROOT = Path("/tmp")
 
@@ -71,6 +74,8 @@ class PrepareError(RuntimeError):
 class RuntimeContract:
     base_url: str
     api_token: str
+    workspace_slug: str
+    library_slug: str
     workspace_id: str
     library_id: str
 
@@ -344,15 +349,19 @@ def _load_runtime_contract(path: Path) -> RuntimeContract:
         raise PrepareError("IronRAG runtime must be UTF-8") from None
     values = _parse_runtime_json(text) if path.suffix.lower() == ".json" else _parse_dotenv(text)
     if frozenset(values) != RUNTIME_KEYS:
-        raise PrepareError("IronRAG runtime does not match the four-key bootstrap contract")
+        raise PrepareError("IronRAG runtime does not match the six-key bootstrap contract")
 
     base_url = _normalise_http_url(values["IRONRAG_BASE_URL"], "IRONRAG_BASE_URL")
     api_token = _validate_runtime_token(values["IRONRAG_API_TOKEN"])
+    workspace_slug = _catalog_slug(values["IRONRAG_WORKSPACE_SLUG"], "workspace")
+    library_slug = _catalog_slug(values["IRONRAG_LIBRARY_SLUG"], "library")
     workspace_id = _canonical_uuid(values["IRONRAG_WORKSPACE_ID"], "workspace")
     library_id = _canonical_uuid(values["IRONRAG_LIBRARY_ID"], "library")
     return RuntimeContract(
         base_url=base_url,
         api_token=api_token,
+        workspace_slug=workspace_slug,
+        library_slug=library_slug,
         workspace_id=workspace_id,
         library_id=library_id,
     )
@@ -418,6 +427,12 @@ def _canonical_uuid(value: str, kind: str) -> str:
     return canonical
 
 
+def _catalog_slug(value: str, kind: str) -> str:
+    if not CATALOG_SLUG_PATTERN.fullmatch(value):
+        raise PrepareError(f"IronRAG runtime contains an invalid {kind} slug")
+    return value
+
+
 def _dotenv(values: dict[str, str]) -> bytes:
     lines: list[str] = []
     for key, value in values.items():
@@ -432,8 +447,7 @@ def _dotenv(values: dict[str, str]) -> bytes:
 def _routing_yaml(runtime: RuntimeContract) -> bytes:
     return (
         "default:\n"
-        f"  workspace: '{runtime.workspace_id}'\n"
-        f"  library: '{runtime.library_id}'\n"
+        f"  library: '{runtime.workspace_slug}/{runtime.library_slug}'\n"
         "\n"
         "policies:\n"
         "  article:\n"

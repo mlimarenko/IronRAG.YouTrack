@@ -13,7 +13,12 @@ import httpx
 import pytest
 from ironrag_connector.orchestrator import Orchestrator
 from ironrag_connector.policy import PushPolicy
-from ironrag_connector.routing import PolicyOverrides, Router, RoutingConfig
+from ironrag_connector.routing import (
+    PolicyOverrides,
+    ResolvedLibraryTarget,
+    Router,
+    RoutingConfig,
+)
 from ironrag_connector.state import StateStore
 from ironrag_connector.sync import SyncManager
 from pydantic import SecretStr
@@ -25,6 +30,7 @@ from ..test_youtrack_lifecycle import MemoryIronRag
 
 WORKSPACE_ID = UUID("00000000-0000-0000-0000-000000000199")
 LIBRARY_ID = UUID("00000000-0000-0000-0000-000000000177")
+LIBRARY_REF = "tests/youtrack-live"
 ARTICLE_COUNT = 17
 PAGE_SIZE = 7
 
@@ -242,11 +248,17 @@ def _runtime(
         RoutingConfig.model_validate(
             {
                 "default": {
-                    "workspace": str(WORKSPACE_ID),
-                    "library": str(LIBRARY_ID),
+                    "library": LIBRARY_REF,
                 }
             }
-        )
+        ),
+        resolved_targets={
+            LIBRARY_REF: ResolvedLibraryTarget(
+                library_ref=LIBRARY_REF,
+                workspace_id=WORKSPACE_ID,
+                library_id=LIBRARY_ID,
+            )
+        },
     )
     state = StateStore(state_path)
     policies = PolicyOverrides(default=PushPolicy(), by_kind={})

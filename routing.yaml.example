@@ -1,31 +1,70 @@
-# First matching rule wins. Match keys are emitted by YouTrackAdapter.
+# IronRAG routing schema (all supported structural keys are documented here).
+# Unknown structural keys are rejected; keys inside `match` are intentionally
+# open-ended adapter fact names, so use the exact names listed below. A rejected
+# reload keeps the previously valid routing snapshot active.
+#
+# Top-level keys:
+#   default  optional mapping or null; no default. Used when no rule matches.
+#            If it is omitted/null and no rule matches, the article is recorded
+#            as unrouted.
+#   rules    optional list; default []. Rules are evaluated in file order and
+#            the first matching rule wins.
+#   policies optional mapping; default {}. Keys are source item kinds. This
+#            connector emits exactly one kind: "article".
+
 default:
-  workspace: 00000000-0000-0000-0000-000000000000
-  library:   00000000-0000-0000-0000-000000000000
+  # Required string. This is the canonical IronRAG catalog reference shown as
+  # <workspace-slug>/<library-slug> (the same form used by IronRAG MCP tools).
+  # Use the workspace and library slugs visible in IronRAG. Exactly one "/" is
+  # required; UUIDs and separate workspace keys are not supported.
+  library: default/youtrack-knowledge-base
 
 rules:
-  - description: "Route one project by short name"
+  # Every rule supports exactly description, match, and target.
+  - description: "Route one project by its YouTrack short name" # optional string; default null
+    # Required non-empty mapping of adapter fact names to expected YAML values.
+    # Criteria in one match are ANDed. A missing/null fact does not match.
+    # Scalar facts use exact, type-sensitive equality. For a collection fact
+    # (currently only "tag"), the expected scalar must be a member.
     match:
       project: DOCS
+    # Required mapping with exactly the required "library" string described above.
     target:
-      library: 00000000-0000-0000-0000-000000000001
+      library: default/product-documentation
 
-  - description: "Route a tagged article set"
+  - description: "Route articles carrying a tag"
     match:
       tag: reference
     target:
-      library: 00000000-0000-0000-0000-000000000002
+      library: default/reference
 
   - description: "Route a hierarchy branch by parent database ID"
     match:
       parent_article_id: 226-0
     target:
-      workspace: 00000000-0000-0000-0000-000000000099
-      library:   00000000-0000-0000-0000-000000000003
+      library: partner-workspace/knowledge-archive
 
+# Available YouTrack match facts. `article_id` is always a string; every other
+# scalar is a string or null when YouTrack omits/hides it:
+#   article_id                 database ID, for example "226-0"
+#   article_id_readable        readable article ID, for example "DOCS-A-1"
+#   project_id                 project database ID, for example "0-7"
+#   project                    project short name; alias of project_short_name
+#   project_short_name         project short name, for example "DOCS"
+#   project_name               project display name
+#   parent_article_id          parent database ID; null for a root article
+#   parent_article_id_readable parent readable ID; null for a root article
+#   tag                        sorted list of tag-name strings; may be empty
+#   reporter_login             reporter login
+
+# Per-kind overrides. The only useful key for this connector is "article".
+# The policies mapping and each kind mapping may be omitted. An individual
+# action may be omitted or null; either inherits the corresponding
+# DEFAULT_POLICY_* environment value. Framework defaults are shown below. No
+# additional policy action values are accepted.
 policies:
   article:
-    on_new: create
-    on_changed: replace
-    on_missing: delete
-    on_duplicate_content: skip
+    on_new: create                # create | skip; default create
+    on_changed: replace           # replace | skip; default replace
+    on_missing: delete            # delete | ignore; default delete
+    on_duplicate_content: skip    # skip | fail; default skip
