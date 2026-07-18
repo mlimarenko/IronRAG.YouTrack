@@ -10,9 +10,9 @@ YouTrackAdapter.iter_items
         │  SourceItemRef(id, routing facts, composite change token)
         ▼
 ConnectorTemplate cursor + router + orchestrator
-        │  upload / noop / replace / reap
+        │  create / noop / revise / reap
         ▼
-IronRAG /v1/content/documents/*
+IronRAG /v1 content + ops endpoints
 ```
 
 The adapter validates the permanent-token identity before every sweep. It then
@@ -68,8 +68,9 @@ dependents while preserving `parent_external_key`.
 
 ## Known upstream title limitation
 
-ConnectorTemplate sends `title` on upload, but its replace request and current
-IronRAG replace endpoint do not update catalog title metadata. The current
-YouTrack summary is always rendered as H1, so retrieval receives the renamed
-title even when the existing IronRAG catalog title remains from the first
-upload. Fully updating catalog title requires an IronRAG/SDK API extension.
+ConnectorTemplate sends `title` on document create, but its revision request
+and the current IronRAG revision endpoint do not update catalog title metadata.
+The current YouTrack summary is always rendered as H1, so retrieval receives
+the renamed title even when the existing IronRAG catalog title remains from the
+initial create. Fully updating catalog title requires an IronRAG/SDK API
+extension.

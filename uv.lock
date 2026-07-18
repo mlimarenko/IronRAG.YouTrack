@@ -276,7 +276,7 @@ wheels = [
 
 [[package]]
 name = "ironrag-connector"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "../connectortemplate" }
 dependencies = [
     { name = "fastapi" },
@@ -312,7 +312,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "ironrag-youtrack-connector"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

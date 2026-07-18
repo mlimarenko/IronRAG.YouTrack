@@ -1,12 +1,22 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from ironrag_connector.ironrag import (
+    DocumentResource,
+    IronRagNotFoundError,
+    OperationHandle,
+    OperationProgress,
+    OperationStatus,
+    OperationStatusValue,
+    ProblemDetails,
+)
 from ironrag_connector.orchestrator import Orchestrator
 from ironrag_connector.policy import PushPolicy
 from ironrag_connector.routing import (
@@ -91,63 +101,142 @@ class FailingEnumerationYouTrack(MutableYouTrack):
             yield deepcopy(self.articles[article_id])
 
 
+def _not_found_error(document_id: str) -> IronRagNotFoundError:
+    return IronRagNotFoundError(
+        ProblemDetails(
+            type="urn:ironrag:error:not_found",
+            title="Not Found",
+            status=404,
+            detail=f"synthetic not found: {document_id}",
+            code="not_found",
+        )
+    )
+
+
+def _ready_operation(operation_id: UUID) -> OperationStatus:
+    return OperationStatus(
+        id=operation_id,
+        workspace_id=WORKSPACE_ID,
+        library_id=LIBRARY_ID,
+        operation_kind="synthetic",
+        status=OperationStatusValue.READY,
+        created_at=datetime.now(tz=UTC),
+        progress=OperationProgress(),
+    )
+
+
 class MemoryIronRag:
+    """In-memory double for the redesigned :class:`IronRagClient` surface:
+    synchronous ``create_document``, asynchronous ``create_revision``/
+    ``delete_document`` polled via ``wait_for_operation``, and
+    ``find_document``/``list_documents`` reads."""
+
     def __init__(self) -> None:
         self.documents: dict[str, dict[str, Any]] = {}
         self.deleted_ids: list[str] = []
+        self._operations: dict[UUID, OperationStatus] = {}
 
-    async def find_document_by_external_key(
-        self, library_id: UUID, external_key: str
-    ) -> dict[str, Any] | None:
+    def _resource(self, document: dict[str, Any]) -> DocumentResource:
+        return DocumentResource(
+            id=UUID(document["id"]),
+            library_id=UUID(document["libraryId"]),
+            external_key=document["externalKey"],
+            status="ready",
+            document_hint=document["documentHint"],
+        )
+
+    def _admit(self) -> OperationHandle:
+        operation_id = uuid4()
+        self._operations[operation_id] = _ready_operation(operation_id)
+        return OperationHandle(operation_id=operation_id)
+
+    async def find_document(self, library_id: UUID, external_key: str) -> DocumentResource | None:
         document = self.documents.get(external_key)
         if document and document["libraryId"] == str(library_id):
-            return deepcopy(document)
+            return self._resource(document)
         return None
 
-    async def upload_document(self, **kwargs: Any) -> dict[str, Any]:
-        external_key = str(kwargs["external_key"])
+    async def list_documents(
+        self,
+        library_id: UUID,
+        *,
+        search: str | None = None,
+        external_key: str | None = None,
+        status: Sequence[str] = (),
+        include_deleted: bool = False,
+        limit: int = 200,
+    ) -> AsyncIterator[DocumentResource]:
+        for key in sorted(self.documents):
+            document = self.documents[key]
+            if document["libraryId"] != str(library_id):
+                continue
+            if external_key and key != external_key:
+                continue
+            if search and search not in key:
+                continue
+            yield self._resource(document)
+
+    async def create_document(
+        self,
+        library_id: UUID,
+        *,
+        external_key: str,
+        file_bytes: bytes | None = None,
+        file_name: str | None = None,
+        mime_type: str | None = None,
+        title: str | None = None,
+        document_hint: str | None = None,
+        parent_external_key: str | None = None,
+    ) -> DocumentResource:
         document = {
             "id": str(uuid4()),
             "externalKey": external_key,
-            "libraryId": str(kwargs["library_id"]),
-            "title": kwargs.get("title"),
-            "payload": bytes(kwargs["file_bytes"]),
-            "documentHint": kwargs.get("document_hint"),
+            "libraryId": str(library_id),
+            "title": title,
+            "payload": bytes(file_bytes or b""),
+            "documentHint": document_hint,
         }
         self.documents[external_key] = document
-        return {"document": deepcopy(document)}
+        return self._resource(document)
 
-    async def replace_document(self, **kwargs: Any) -> dict[str, Any] | None:
-        document_id = str(kwargs["document_id"])
-        for document in self.documents.values():
-            if document["id"] == document_id:
-                document["payload"] = bytes(kwargs["file_bytes"])
-                document["documentHint"] = kwargs.get("document_hint")
-                return {"document": deepcopy(document)}
-        return None
-
-    async def list_documents_by_external_key_prefix(
-        self, library_id: UUID, prefix: str, **_: Any
-    ) -> list[tuple[str, str]]:
-        return [
-            (key, str(document["id"]))
-            for key, document in self.documents.items()
-            if key.startswith(prefix) and document["libraryId"] == str(library_id)
-        ]
-
-    async def delete_document(self, document_id: UUID | str, _: str) -> None:
+    async def create_revision(
+        self,
+        document_id: UUID | str,
+        *,
+        mode: str,
+        markdown: str | None = None,
+        appended_text: str | None = None,
+        file_bytes: bytes | None = None,
+        file_name: str | None = None,
+        mime_type: str | None = None,
+        idempotency_key: str,
+    ) -> OperationHandle:
         target = str(document_id)
-        self.deleted_ids.append(target)
+        for document in self.documents.values():
+            if document["id"] == target:
+                document["payload"] = bytes(file_bytes or b"")
+                return self._admit()
+        raise _not_found_error(target)
+
+    async def delete_document(
+        self, document_id: UUID | str, *, idempotency_key: str
+    ) -> OperationHandle | None:
+        target = str(document_id)
         for key, document in list(self.documents.items()):
             if document["id"] == target:
                 del self.documents[key]
-
-    async def get_document(self, document_id: UUID | str) -> dict[str, Any] | None:
-        target = str(document_id)
-        for document in self.documents.values():
-            if document["id"] == target:
-                return deepcopy(document)
+                self.deleted_ids.append(target)
+                return self._admit()
         return None
+
+    async def wait_for_operation(
+        self,
+        operation_id: UUID | str,
+        *,
+        poll_interval: float | None = None,
+        budget: float | None = None,
+    ) -> OperationStatus:
+        return self._operations[UUID(str(operation_id))]
 
 
 def _manager(

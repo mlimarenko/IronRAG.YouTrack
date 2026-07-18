@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0 — 2026-07-18
+
+- Migrated to connector framework 0.2.0 (redesigned IronRAG REST v2 content
+  API): typed document resources, `201`-create / `202`-revision semantics with
+  operation polling, and the RFC 9457 problem-details error family.
+- Rewrote the lifecycle test double to the redesigned client surface
+  (`create_document` returning typed resources, revision/delete operations
+  polled to a terminal state, typed not-found errors) and updated the e2e
+  runtime preparation script and architecture notes to the create/revise
+  terminology and the content + operations endpoint surface.
+- Replaced removed framework settings in `.env.example`
+  (`IRONRAG_MUTATION_TIMEOUT_SECONDS`,
+  `CURSOR_LIBRARY_LOOKUP_TIMEOUT_SECONDS`,
+  `CURSOR_LIBRARY_LOOKUP_MAX_ROWS_PER_SWEEP`) with the new
+  `OPERATION_POLL_INTERVAL_SECONDS`, `OPERATION_POLL_BUDGET_SECONDS`, and
+  `REWALK_CONCURRENCY` knobs.
+- Pinned the release workflow to framework `v0.2.0`.
+- Bumped the package version to 0.2.0.
+
 ## 0.1.0 — 2026-07-14
 
 - Replaced workspace and library UUID routing with canonical
