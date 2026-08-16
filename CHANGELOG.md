@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.1 — 2026-08-16
+
+- Pinned the release workflow to connector framework `v0.2.2`, moving the
+  published image two framework versions forward from `v0.2.1`.
+- Picks up the framework catalog-client fix (`0.2.2`): the two catalog list
+  endpoints have different response shapes — the workspace list returns a bare
+  JSON array while the library list returns a bounded `{items, totalCount,
+  offset, limit}` page — and a single reader demanded an array from both, so
+  startup failed before any routing ref could be resolved and the connector
+  never came up. Library ref resolution now also walks every page instead of
+  reading one, narrowing server-side with `search` and comparing slugs exactly,
+  so a library beyond the first page is no longer reported as not visible.
+- Picks up the framework upload fix (`0.2.1`): the redundant `library_id`
+  multipart field is no longer sent when creating a document. The library is
+  already identified by the path segment, and IronRAG rejects any field outside
+  its multipart allow-list, so every file-backed upload failed.
+- Bumped the package version to 0.2.1.
+
 ## 0.2.0 — 2026-07-18
 
 - Migrated to connector framework 0.2.0 (redesigned IronRAG REST v2 content
